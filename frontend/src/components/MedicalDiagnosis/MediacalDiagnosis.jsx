@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import Button from "../UI/Button";
 import DiagnosisResult from "./DiagnosisResult";
 import { Stethoscope, AlertCircle, Activity, UserCircle2 } from "lucide-react";
+import { getMedicalDiagnosis } from "../../services/geminiService";
+
 const mockResult = {
   status: "success",
   result: {
@@ -51,8 +53,6 @@ const mockResult = {
     disclaimer: "This analysis is for educational purposes only...",
   },
 };
-
-
 
 const MedicalDiagnosisForm = () => {
   const [loading, setLoading] = useState(false);
@@ -115,59 +115,63 @@ const MedicalDiagnosisForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setResult(mockResult);
-      setLoading(false);
-    }, 2000);
+    setResult(null);
 
     try {
-      const url = 'https://ai-medical-diagnosis-api-symptoms-to-results.p.rapidapi.com/analyzeSymptomsAndDiagnose?noqueue=1';
+      // Prepare the prompt with all the patient information
+      const prompt = `Given the following patient information:
+      Age: ${formData.age}
+      Gender: ${formData.gender}
+      Height: ${formData.height} cm
+      Weight: ${formData.weight} kg
+      Symptoms: ${formData.symptoms}
+      Medical History: ${formData.medicalHistory}
+      Current Medications: ${formData.currentMedications}
+      Allergies: ${formData.allergies}
+      Lifestyle: 
+        - Smoking: ${formData.smoking}
+        - Alcohol: ${formData.alcohol}
+        - Exercise: ${formData.exercise}
+        - Diet: ${formData.diet}
 
-      const requestBody = {
-        symptoms: formData.symptoms.split(',').map((s) => s.trim()),
-        patientInfo: {
-          age: parseInt(formData.age),
-          gender: formData.gender,
-          height: parseInt(formData.height),
-          weight: parseInt(formData.weight),
-          medicalHistory: formData.medicalHistory.split(',').map((s) => s.trim()),
-          currentMedications: formData.currentMedications.split(',').map((s) => s.trim()),
-          allergies: formData.allergies.split(',').map((s) => s.trim()),
-          lifestyle: {
-            smoking: formData.smoking,
-            alcohol: formData.alcohol,
-            exercise: formData.exercise,
-            diet: formData.diet,
+      Provide a medical analysis in the following JSON format:
+      {
+        "result": {
+          "analysis": {
+            "possibleConditions": [
+              {
+                "condition": "string",
+                "riskLevel": "low/medium/high",
+                "description": "string",
+                "commonSymptoms": ["string"],
+                "matchingSymptoms": ["string"],
+                "additionalInfo": "string"
+              }
+            ],
+            "generalAdvice": {
+              "recommendedActions": ["string"],
+              "lifestyleConsiderations": ["string"],
+              "whenToSeekMedicalAttention": ["string"]
+            }
           },
+          "educationalResources": {
+            "medicalTerminology": {},
+            "reliableSources": ["string"]
+          }
         },
-        lang: 'en',
-      };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-        'x-rapidapi-key': '356f91d6cdmsh5903b45f861ec51p178dfcjsn3228785bad00',
-		    'x-rapidapi-host': 'ai-medical-diagnosis-api-symptoms-to-results.p.rapidapi.com',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        "disclaimer": "string"
       }
+      Include a clear disclaimer that this is not a replacement for professional medical advice.`;
 
-      const data = await response.json();
-
-      if (data.status === 'pending') {
-        fetchResult(data.queueId);
-      } else {
-        setResult(data);
-        setLoading(false);
-      }
+      const diagnosis = await getMedicalDiagnosis(prompt);
+      setResult(diagnosis);
     } catch (error) {
       console.error('Error getting diagnosis:', error);
-      setResult({ error: error.message });
+      setResult({ 
+        error: 'Failed to get diagnosis. Please try again.',
+        details: error.message 
+      });
+    } finally {
       setLoading(false);
     }
   };

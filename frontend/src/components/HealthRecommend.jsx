@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Heart, Activity, CheckCircle , UserCircle2, Clipboard, Settings} from 'lucide-react';
+import { getMedicalDiagnosis } from '../services/geminiService';
 
 export default function HealthRecommend() {
   const [formData, setFormData] = useState({
@@ -20,8 +21,9 @@ export default function HealthRecommend() {
     bloodSugar: '',
   });
 
-  const [healthRecommendations, setHealthRecommendations] = useState(null); // Store recommendations data
-  const [loading, setLoading] = useState(false); // State to manage loading
+  const [healthRecommendations, setHealthRecommendations] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
   const [formSubmitted, setFormSubmitted] = useState(false);
   
@@ -49,11 +51,11 @@ export default function HealthRecommend() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormSubmitted(true);
-    setLoading(true); // Set loading to true when the request starts
+    setLoading(true);
+    setError(null);
 
     const healthProfile = {
       age: Number(formData.age),
-      gender: formData.gender,
       weight: Number(formData.weight),
       height: Number(formData.height),
       bmi: Number(formData.bmi),
@@ -74,49 +76,74 @@ export default function HealthRecommend() {
       },
     };
 
-    const requestBody = {
-      healthProfile,
-      goals: {
-        weightManagement: true,
-        stressReduction: true,
-        improveBloodPressure: true,
-        preventDiabetes: true,
-        increaseFitness: true,
+    const prompt = `Given the following health profile:
+    Age: ${healthProfile.age}
+    Weight: ${healthProfile.weight} kg
+    Height: ${healthProfile.height} cm
+    BMI: ${healthProfile.bmi}
+    Activity Level: ${healthProfile.activityLevel}
+    Medical Conditions: ${healthProfile.medicalConditions.join(', ')}
+    Lifestyle:
+      - Smoking: ${healthProfile.lifestyle.smoking}
+      - Alcohol: ${healthProfile.lifestyle.alcohol}
+      - Diet: ${healthProfile.lifestyle.diet}
+      - Sleep Hours: ${healthProfile.lifestyle.sleepHours}
+      - Stress Level: ${healthProfile.lifestyle.stressLevel}
+      - Exercise Frequency: ${healthProfile.lifestyle.exerciseFrequency}
+    Vitals:
+      - Blood Pressure: ${healthProfile.vitals.bloodPressure}
+      - Resting Heart Rate: ${healthProfile.vitals.restingHeartRate}
+      - Blood Sugar: ${healthProfile.vitals.bloodSugar}
+
+    Provide health recommendations in the following JSON format:
+    {
+      "result": {
+        "healthAssessment": {
+          "overview": "string",
+          "keyAreas": ["string"],
+          "riskFactors": ["string"]
+        },
+        "recommendations": {
+          "lifestyle": {
+            "diet": ["string"],
+            "exercise": ["string"],
+            "sleep": ["string"],
+            "stress": ["string"]
+          },
+          "preventiveCare": {
+            "screening": ["string"],
+            "vaccinations": ["string"],
+            "checkups": ["string"]
+          }
+        }
       },
-      lang: 'en',
-    };
+      "disclaimer": "string"
+    }`;
 
     try {
-      const response = await fetch(
-        'https://ai-medical-diagnosis-api-symptoms-to-results.p.rapidapi.com/getHealthRecommendations?noqueue=1',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-rapidapi-host': 'ai-medical-diagnosis-api-symptoms-to-results.p.rapidapi.com',
-            'x-rapidapi-key': '5b8827fa98msh0c39c2348ce50a1p1a0ee3jsnf8c822c36be3',
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
-
-      const data = await response.json();
-      setHealthRecommendations(data.result); // Set fetched data to state
+      const recommendations = await getMedicalDiagnosis(prompt);
+      if (recommendations?.result) {
+        setHealthRecommendations(recommendations.result);
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
-      console.error('Error fetching health recommendations:', error);
+      console.error('Error getting health recommendations:', error);
+      setError(error.message || 'Failed to get recommendations. Please try again.');
+      setHealthRecommendations(null);
     } finally {
-      setLoading(false); // Set loading to false after the fetch is complete
+      setLoading(false);
     }
   };
 
-  // Automatically calculate BMI whenever weight or height changes
+  
   useEffect(() => {
     if (formData.weight && formData.height) {
       const heightInMeters = formData.height / 100; // Convert height to meters
       const calculatedBMI = formData.weight / (heightInMeters * heightInMeters);
       setFormData((prevData) => ({
         ...prevData,
-        bmi: calculatedBMI.toFixed(2), // Round BMI to 2 decimal places
+        bmi: calculatedBMI.toFixed(2), 
       }));
     }
   }, [formData.weight, formData.height]);
@@ -355,19 +382,29 @@ export default function HealthRecommend() {
               )}
             </div>
           </form>
-        </div>
 
-        {/* Show loading indicator when data is being fetched */}
-        {loading && (
-          <div className="mt-8 p-4 bg-gray-200 rounded-lg text-center text-gray-600">
-            Loading...
-          </div>
-        )}
+          {/* Error Display */}
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                <p className="text-red-600">{error}</p>
+              </div>
+            </div>
+          )}
 
-        {/* Display health recommendations in JSON format */}
-        {healthRecommendations && !loading && (
-              <div className="mt-12 space-y-8 animate-fadeIn">
-                {/* Health Assessment Overview */}
+          {/* Loading Indicator */}
+          {loading && (
+            <div className="mt-8 p-4 bg-gray-200 rounded-lg text-center text-gray-600">
+              Loading...
+            </div>
+          )}
+
+          {/* Results Display */}
+          {healthRecommendations && !loading && !error && (
+            <div className="mt-12 space-y-8 animate-fadeIn">
+              {/* Health Assessment Overview */}
+              {healthRecommendations.healthAssessment && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-4">Health Assessment</h3>
                   <p className="text-gray-600 mb-4">{healthRecommendations.healthAssessment.overview}</p>
@@ -376,7 +413,7 @@ export default function HealthRecommend() {
                   <div className="space-y-2">
                     <h4 className="text-lg font-semibold text-gray-800">Key Areas</h4>
                     <ul className="space-y-1">
-                      {healthRecommendations.healthAssessment.keyAreas.map((area, index) => (
+                      {healthRecommendations.healthAssessment.keyAreas?.map((area, index) => (
                         <li key={index} className="flex items-center space-x-2 text-gray-600">
                           <CheckCircle className="w-4 h-4 text-green-500" />
                           <span>{area}</span>
@@ -389,7 +426,7 @@ export default function HealthRecommend() {
                   <div className="mt-4 space-y-2">
                     <h4 className="text-lg font-semibold text-gray-800">Risk Factors</h4>
                     <ul className="space-y-1">
-                      {healthRecommendations.healthAssessment.riskFactors.map((factor, index) => (
+                      {healthRecommendations.healthAssessment.riskFactors?.map((factor, index) => (
                         <li key={index} className="flex items-center space-x-2 text-red-600">
                           <AlertTriangle className="w-4 h-4" />
                           <span>{factor}</span>
@@ -398,8 +435,10 @@ export default function HealthRecommend() {
                     </ul>
                   </div>
                 </div>
+              )}
           
-                {/* Recommendations */}
+              {/* Recommendations */}
+              {healthRecommendations.recommendations && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
                     <Heart className="w-6 h-6 text-rose-600" />
@@ -408,11 +447,11 @@ export default function HealthRecommend() {
           
                   {/* Lifestyle Recommendations */}
                   <div className="space-y-6">
-                    {Object.entries(healthRecommendations.recommendations.lifestyle).map(([key, value]) => (
+                    {Object.entries(healthRecommendations.recommendations.lifestyle || {}).map(([key, value]) => (
                       <div key={key} className="space-y-4">
                         <h4 className="text-lg font-semibold text-gray-800 capitalize">{key}</h4>
                         <ul className="space-y-1">
-                          {value.map((item, index) => (
+                          {value?.map((item, index) => (
                             <li key={index} className="flex space-x-2 text-gray-600 items-start">
                               <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
                               <span>{item}</span>
@@ -423,8 +462,10 @@ export default function HealthRecommend() {
                     ))}
                   </div>
                 </div>
+              )}
           
-                {/* Preventive Care */}
+              {/* Preventive Care */}
+              {healthRecommendations.recommendations?.preventiveCare && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
                     <Activity className="w-6 h-6 text-green-500" />
@@ -435,7 +476,7 @@ export default function HealthRecommend() {
                     <div key={section} className="space-y-4">
                       <h4 className="text-lg font-semibold text-gray-800 capitalize">{section}</h4>
                       <ul className="space-y-1">
-                        {items.map((item, index) => (
+                        {items?.map((item, index) => (
                           <li key={index} className="flex items-start space-x-2 text-gray-600">
                             <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
                             <span>{item}</span>
@@ -445,21 +486,10 @@ export default function HealthRecommend() {
                     </div>
                   ))}
                 </div>
-          
-                {/* Animations and Styling */}
-                <style jsx>{`
-                  @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                  }
-          
-                  .animate-fadeIn {
-                    animation: fadeIn 0.5s ease-out;
-                  }
-                `}</style>
-              </div>
-          
-        )}
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
