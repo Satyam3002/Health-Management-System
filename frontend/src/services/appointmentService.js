@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL + '/appointments' || 'http://localhost:5000/api/v1/appointments';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1') + '/appointments';
 
 class AppointmentService {
   // Get all appointments for a user
@@ -6,7 +6,12 @@ class AppointmentService {
     try {
       const response = await fetch(`${API_BASE_URL}/user/${authId}?status=${status}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch appointments');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch appointments' }));
+        throw new Error(errorData.message || 'Failed to fetch appointments');
       }
       const data = await response.json();
       return data.data || [];
@@ -28,7 +33,11 @@ class AppointmentService {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const errorData = await response.json().catch(() => ({ message: 'Failed to create appointment' }));
         throw new Error(errorData.message || 'Failed to create appointment');
       }
       
@@ -52,7 +61,11 @@ class AppointmentService {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const errorData = await response.json().catch(() => ({ message: 'Failed to update appointment status' }));
         throw new Error(errorData.message || 'Failed to update appointment status');
       }
       
@@ -76,7 +89,11 @@ class AppointmentService {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const errorData = await response.json().catch(() => ({ message: 'Failed to update appointment details' }));
         throw new Error(errorData.message || 'Failed to update appointment details');
       }
       
@@ -96,7 +113,11 @@ class AppointmentService {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete appointment' }));
         throw new Error(errorData.message || 'Failed to delete appointment');
       }
       
@@ -112,7 +133,12 @@ class AppointmentService {
     try {
       const response = await fetch(`${API_BASE_URL}/${appointmentId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch appointment');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch appointment' }));
+        throw new Error(errorData.message || 'Failed to fetch appointment');
       }
       const data = await response.json();
       return data.data;
@@ -127,7 +153,12 @@ class AppointmentService {
     try {
       const response = await fetch(`${API_BASE_URL}/doctor/${doctorEmail}?status=${status}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch doctor appointments');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const errorData = await response.json().catch(() => ({ message: 'Failed to fetch doctor appointments' }));
+        throw new Error(errorData.message || 'Failed to fetch doctor appointments');
       }
       const data = await response.json();
       return data.data || [];

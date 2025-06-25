@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL + '/auth' || 'http://localhost:5000/api/v1/auth';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1') + '/auth';
 
 class AuthService {
   constructor() {
@@ -40,20 +40,17 @@ class AuthService {
     return !!this.user && !!this.token;
   }
 
-
   getCurrentUser() {
     return this.user;
   }
-
 
   getCurrentToken() {
     return this.token;
   }
 
-
   async login(email, password) {
     try {
-
+      // Demo login for testing
       if (email === 'demo@example.com' && password === 'password123') {
         const mockUser = {
           id: 'user123',
@@ -73,7 +70,6 @@ class AuthService {
         };
       }
 
-
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: {
@@ -82,11 +78,16 @@ class AuthService {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const data = await response.json().catch(() => ({ message: 'Login failed' }));
         throw new Error(data.message || 'Login failed');
       }
+
+      const data = await response.json();
 
       const user = {
         id: data.user.id,
@@ -108,7 +109,6 @@ class AuthService {
     }
   }
 
-
   async logout() {
     try {
       this.clearUserAndToken();
@@ -118,7 +118,6 @@ class AuthService {
       throw new Error('Logout failed');
     }
   }
-
 
   async register(email, password, name) {
     try {
@@ -134,11 +133,16 @@ class AuthService {
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Server returned HTML instead of JSON. Please check if the backend server is running.');
+        }
+        const data = await response.json().catch(() => ({ message: 'Registration failed' }));
         throw new Error(data.message || 'Registration failed');
       }
+
+      const data = await response.json();
 
       const user = {
         id: data.user.id,
@@ -160,7 +164,6 @@ class AuthService {
     }
   }
 }
-
 
 const authService = new AuthService();
 

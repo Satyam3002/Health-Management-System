@@ -1,6 +1,8 @@
 import { useState, useEffect, useContext } from "react";
 import { AppContext } from "../context/AppContext";
 import AppointmentService from "../services/appointmentService";
+import { motion } from "framer-motion";
+import { Calendar, Clock, User, MapPin, CheckCircle, AlertCircle, Building2, Stethoscope } from "lucide-react";
 
 const HospitalDetails = ({ selectedHospital }) => {
   const { user, isAuthenticated } = useContext(AppContext);
@@ -73,6 +75,7 @@ const HospitalDetails = ({ selectedHospital }) => {
 
       setBookingStatus("Appointment booked successfully!");
       setSelectedTimeSlot(null);
+      setSelectedTimeSlot(null);
       setAppointmentType(null);
     } catch (err) {
       setBookingStatus(`Failed to book appointment: ${err.message || "Please try again."}`);
@@ -81,180 +84,318 @@ const HospitalDetails = ({ selectedHospital }) => {
     }
   };
 
+  // Progress tracking
+  const progressSteps = [
+    { name: "Department", completed: !!selectedDepartment },
+    { name: "Doctor", completed: !!selectedDoctor },
+    { name: "Date", completed: !!selectedDate },
+    { name: "Time", completed: !!selectedTimeSlot },
+    { name: "Book", completed: false }
+  ];
+
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 md:p-6 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden"
+    >
       {selectedHospital ? (
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 text-center md:text-left">
-            {selectedHospital.name}
-          </h2>
-          <p className="text-sm md:text-base text-gray-500 mb-6 text-center md:text-left">
-            {selectedHospital.vicinity}
-          </p>
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+                <Building2 className="w-8 h-8" />
+              </div>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold">
+                  {selectedHospital.name}
+                </h2>
+                <p className="text-blue-100 flex items-center gap-2 mt-1">
+                  <MapPin className="w-4 h-4" />
+                  {selectedHospital.vicinity}
+                </p>
+              </div>
+            </div>
+          </div>
 
-          {/* Departments */}
-          <div className="mb-8 md:mb-10">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-700 mb-4">Select Department</h3>
-            <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-              {selectedHospital?.departments?.map((department) => (
-                <button
-                  key={department.name}
-                  onClick={() => handleDepartmentSelect(department)}
-                  className={`px-4 py-2 md:px-5 md:py-2 rounded-lg font-medium shadow-sm transition-all w-full md:w-auto text-center ${
-                    selectedDepartment?.name === department.name
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 hover:bg-blue-100 text-gray-800"
-                  }`}
-                >
-                  {department.name}
-                </button>
+          {/* Progress Bar */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Booking Progress</h3>
+              <span className="text-sm text-gray-500">
+                {progressSteps.filter(step => step.completed).length} of {progressSteps.length} steps
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {progressSteps.map((step, index) => (
+                <div key={step.name} className="flex items-center flex-1">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                    step.completed 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    {step.completed ? <CheckCircle className="w-5 h-5" /> : index + 1}
+                  </div>
+                  {index < progressSteps.length - 1 && (
+                    <div className={`flex-1 h-1 mx-2 rounded ${
+                      step.completed ? 'bg-green-500' : 'bg-gray-200'
+                    }`} />
+                  )}
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Doctors */}
-          {selectedDepartment && (
-            <div className="mb-8 md:mb-10">
-              <h3 className="text-lg md:text-xl font-semibold text-gray-700 mb-4">Select Doctor</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {selectedDepartment.doctors?.map((doctor) => (
-                  <div
-                    key={doctor.name}
-                    className={`p-4 md:p-5 border rounded-lg cursor-pointer shadow-md transition-all ${
-                      selectedDoctor?.name === doctor.name
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-gray-200 hover:shadow-lg"
+          <div className="p-6">
+            {/* Departments */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-8"
+            >
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Stethoscope className="w-5 h-5 text-blue-600" />
+                Select Department
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {selectedHospital?.departments?.map((department) => (
+                  <motion.button
+                    key={department.name}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleDepartmentSelect(department)}
+                    className={`p-4 rounded-xl font-medium shadow-sm transition-all text-left border-2 ${
+                      selectedDepartment?.name === department.name
+                        ? "border-blue-500 bg-blue-50 text-blue-700 shadow-md"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-blue-50 text-gray-700"
                     }`}
-                    onClick={() => handleDoctorSelect(doctor)}
                   >
-                    <h4 className="font-medium text-gray-800">{doctor.name}</h4>
-                    <p
-                      className={`text-sm font-medium ${
-                        doctor.available ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {doctor.available ? "Available" : "Not Available"}
-                    </p>
-                  </div>
+                    <div className="font-semibold">{department.name}</div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {department.doctors?.length || 0} doctors available
+                    </div>
+                  </motion.button>
                 ))}
               </div>
-            </div>
-          )}
+            </motion.div>
 
-          {/* Dates */}
-          {selectedDoctor && (
-            <div className="mb-8 md:mb-10">
-              <h3 className="text-lg md:text-xl font-semibold text-gray-700 mb-4">Select Date</h3>
-              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                {[...selectedDoctor.availability.offline, ...selectedDoctor.availability.online]
-                  .map(slot => slot.date)
-                  .filter((date, index, self) => self.indexOf(date) === index)
-                  .map((date) => (
-                    <button
-                      key={date}
-                      onClick={() => handleDateSelect(date)}
-                      className={`px-4 py-2 rounded-lg shadow-sm transition-all ${
-                        selectedDate === date ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"
+            {/* Doctors */}
+            {selectedDepartment && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-8"
+              >
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <User className="w-5 h-5 text-blue-600" />
+                  Select Doctor
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedDepartment.doctors?.map((doctor) => (
+                    <motion.div
+                      key={doctor.name}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`p-5 border-2 rounded-xl cursor-pointer shadow-sm transition-all ${
+                        selectedDoctor?.name === doctor.name
+                          ? "border-blue-500 bg-blue-50 shadow-md"
+                          : "border-gray-200 hover:border-blue-300 hover:shadow-md"
                       }`}
+                      onClick={() => handleDoctorSelect(doctor)}
                     >
-                      {date}
-                    </button>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-800">{doctor.name}</h4>
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                          doctor.available 
+                            ? "bg-green-100 text-green-700" 
+                            : "bg-red-100 text-red-700"
+                        }`}>
+                          {doctor.available ? "Available" : "Not Available"}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600">{doctor.gmail}</p>
+                    </motion.div>
                   ))}
-              </div>
-            </div>
-          )}
+                </div>
+              </motion.div>
+            )}
 
-          {/* Time Slots */}
-          {selectedDate && selectedDoctor && (
-            <div className="mb-8 md:mb-10">
-              <h3 className="text-lg md:text-xl font-semibold text-gray-700 mb-4">Select Time Slot</h3>
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-800 mb-2">Offline Appointments</h4>
-                <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                  {selectedDoctor.availability.offline
-                    .filter(slot => slot.date === selectedDate)
-                    .map((slot, idx) => (
-                      <button
-                        key={`offline-${idx}`}
-                        onClick={() => handleTimeSlotSelect(slot.time, "offline")}
-                        className={`px-3 py-2 rounded-lg shadow-sm transition-all ${
-                          selectedTimeSlot === slot.time && appointmentType === "offline"
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 hover:bg-blue-100"
+            {/* Dates */}
+            {selectedDoctor && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-8"
+              >
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  Select Date
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                  {[...selectedDoctor.availability.offline, ...selectedDoctor.availability.online]
+                    .map(slot => slot.date)
+                    .filter((date, index, self) => self.indexOf(date) === index)
+                    .map((date) => (
+                      <motion.button
+                        key={date}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleDateSelect(date)}
+                        className={`px-6 py-3 rounded-xl font-medium shadow-sm transition-all ${
+                          selectedDate === date 
+                            ? "bg-blue-600 text-white shadow-md" 
+                            : "bg-gray-100 hover:bg-blue-100 text-gray-700"
                         }`}
                       >
-                        {slot.time}
-                      </button>
+                        {date}
+                      </motion.button>
                     ))}
                 </div>
-              </div>
+              </motion.div>
+            )}
 
-              <div>
-                <h4 className="font-medium text-gray-800 mb-2">Online Appointments</h4>
-                <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                  {selectedDoctor.availability.online
-                    .filter(slot => slot.date === selectedDate)
-                    .map((slot, idx) => (
-                      <button
-                        key={`online-${idx}`}
-                        onClick={() => handleTimeSlotSelect(slot.time, "online")}
-                        className={`px-3 py-2 rounded-lg shadow-sm transition-all ${
-                          selectedTimeSlot === slot.time && appointmentType === "online"
-                            ? "bg-green-600 text-white"
-                            : "bg-gray-200 hover:bg-green-100"
-                        }`}
-                      >
-                        {slot.time}
-                      </button>
-                    ))}
+            {/* Time Slots */}
+            {selectedDate && selectedDoctor && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-8"
+              >
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                  Select Time Slot
+                </h3>
+                
+                <div className="space-y-6">
+                  {/* Offline Appointments */}
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      Offline Appointments
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                      {selectedDoctor.availability.offline
+                        .filter(slot => slot.date === selectedDate)
+                        .map((slot, idx) => (
+                          <motion.button
+                            key={`offline-${idx}`}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleTimeSlotSelect(slot.time, "offline")}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                              selectedTimeSlot === slot.time && appointmentType === "offline"
+                                ? "bg-blue-600 text-white shadow-md"
+                                : "bg-gray-100 hover:bg-blue-100 text-gray-700"
+                            }`}
+                          >
+                            {slot.time}
+                          </motion.button>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Online Appointments */}
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      Online Appointments
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                      {selectedDoctor.availability.online
+                        .filter(slot => slot.date === selectedDate)
+                        .map((slot, idx) => (
+                          <motion.button
+                            key={`online-${idx}`}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleTimeSlotSelect(slot.time, "online")}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                              selectedTimeSlot === slot.time && appointmentType === "online"
+                                ? "bg-green-600 text-white shadow-md"
+                                : "bg-gray-100 hover:bg-green-100 text-gray-700"
+                            }`}
+                          >
+                            {slot.time}
+                          </motion.button>
+                        ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
 
-          {/* Booking Status */}
-          {bookingStatus && (
-            <div className={`mb-6 p-4 rounded-lg ${
-              bookingStatus.includes("successfully") 
-                ? "bg-green-50 text-green-700 border border-green-200" 
-                : "bg-red-50 text-red-700 border border-red-200"
-            }`}>
-              {bookingStatus}
-            </div>
-          )}
-
-          {/* Book Appointment Button */}
-          {selectedDoctor && selectedDate && selectedTimeSlot && appointmentType && (
-            <div className="flex justify-center">
-              <button
-                onClick={handleBookAppointment}
-                disabled={isLoading || !isAuthenticated}
-                className={`px-8 py-3 rounded-lg font-semibold text-white transition-all duration-200 ${
-                  isLoading || !isAuthenticated
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 transform hover:scale-105"
+            {/* Booking Status */}
+            {bookingStatus && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
+                  bookingStatus.includes("successfully") 
+                    ? "bg-green-50 text-green-700 border border-green-200" 
+                    : "bg-red-50 text-red-700 border border-red-200"
                 }`}
               >
-                {isLoading ? "Booking..." : "Book Appointment"}
-              </button>
-            </div>
-          )}
+                {bookingStatus.includes("successfully") ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                )}
+                {bookingStatus}
+              </motion.div>
+            )}
 
-          {/* Authentication Notice */}
-          {!isAuthenticated && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
-              <p className="text-center">
-                Please <a href="/" className="underline font-medium">log in</a> to book an appointment.
-              </p>
-            </div>
-          )}
+            {/* Book Appointment Button */}
+            {selectedDoctor && selectedDate && selectedTimeSlot && appointmentType && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-center"
+              >
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleBookAppointment}
+                  disabled={isLoading || !isAuthenticated}
+                  className={`px-8 py-4 rounded-xl font-semibold text-white transition-all duration-200 shadow-lg ${
+                    isLoading || !isAuthenticated
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  }`}
+                >
+                  {isLoading ? "Booking..." : "Book Appointment"}
+                </motion.button>
+              </motion.div>
+            )}
+
+            {/* Authentication Notice */}
+            {!isAuthenticated && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-700"
+              >
+                <p className="text-center">
+                  Please <a href="/" className="underline font-medium">log in</a> to book an appointment.
+                </p>
+              </motion.div>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="text-center text-gray-500">
+        <div className="text-center text-gray-500 p-12">
+          <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Building2 className="w-12 h-12 text-gray-400" />
+          </div>
           <p>Select a hospital to view details and book appointments.</p>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
