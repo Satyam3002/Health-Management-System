@@ -18,9 +18,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/health-ma
 // Routes
 const authRoutes = require('./routes/authRoutes')
 const roomRoutes = require('./routes/roomRoute')
+const appointmentRoutes = require('./routes/appointmentRoutes')
 
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1', roomRoutes)
+app.use('/api/v1/appointments', appointmentRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

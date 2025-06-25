@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
+import { useState, useEffect, useContext } from "react";
+import { AppContext } from "../context/AppContext";
+import AppointmentService from "../services/appointmentService";
 import Card from "./UI/Card";
 import Modal from "./UI/Modal";
 import { motion } from "framer-motion";
@@ -8,6 +9,7 @@ import {useNavigate} from 'react-router-dom'
 
 const MyAppointment = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useContext(AppContext);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,27 +25,20 @@ const MyAppointment = () => {
   });
 
   useEffect(() => {
-    fetchAppointments();
-  }, []);
+    if (isAuthenticated && user) {
+      fetchAppointments();
+    } else {
+      setLoading(false);
+      setError("Please log in to view appointments.");
+    }
+  }, [selectedFilter, isAuthenticated, user]);
 
   const fetchAppointments = async () => {
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) {
-        setError("Please log in to view appointments.");
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*, doctor_email,appointment_date")
-        .eq("auth_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      setLoading(true);
+      const data = await AppointmentService.getUserAppointments(user.id, selectedFilter);
       setAppointments(data);
+      setError(null);
     } catch (err) {
       console.error("Error fetching appointments:", err);
       setError("Failed to load appointments. Please try again later.");
@@ -72,21 +67,26 @@ const MyAppointment = () => {
 
   const handleSubmitForm = async (e) => {
     e.preventDefault();
-    const emailData = {
-      service_id: "service_bv3i6qp",
-      template_id: "template_1f6thm8",
-      user_id: "1Fyyfib7XghQqEtKM",
-      template_params: {
-        to_email: currentDoctor.doctor_email,
-        patient_symptoms: formData.symptoms,
-        patient_medications: formData.medications,
-        patient_allergies: formData.allergies,
-        patient_medical_history: formData.medicalHistory,
-        patient_medicine_history: formData.medicineHistory,
-      },
-    };
-
+    
     try {
+      // Update appointment details in MongoDB
+      await AppointmentService.updateAppointmentDetails(currentDoctor._id, formData);
+      
+      // Send email to doctor (keeping the existing email functionality)
+      const emailData = {
+        service_id: "service_bv3i6qp",
+        template_id: "template_1f6thm8",
+        user_id: "1Fyyfib7XghQqEtKM",
+        template_params: {
+          to_email: currentDoctor.doctor_email,
+          patient_symptoms: formData.symptoms,
+          patient_medications: formData.medications,
+          patient_allergies: formData.allergies,
+          patient_medical_history: formData.medicalHistory,
+          patient_medicine_history: formData.medicineHistory,
+        },
+      };
+
       const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,14 +103,26 @@ const MyAppointment = () => {
           medicalHistory: "",
           medicineHistory: "",
         });
+        // Refresh appointments to show updated data
+        fetchAppointments();
       } else {
         const errorResponse = await response.json();
         console.error("Error response:", errorResponse);
         alert("Failed to send email. Please check your inputs and try again.");
       }
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error("Error updating appointment details:", error);
       alert("An error occurred. Please try again.");
+    }
+  };
+
+  const handleStatusUpdate = async (appointmentId, newStatus) => {
+    try {
+      await AppointmentService.updateAppointmentStatus(appointmentId, newStatus);
+      fetchAppointments(); // Refresh the list
+    } catch (error) {
+      console.error("Error updating appointment status:", error);
+      alert("Failed to update appointment status.");
     }
   };
 
@@ -126,6 +138,25 @@ const MyAppointment = () => {
     );
   }
 
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg text-yellow-600 bg-yellow-100 px-6 py-4 rounded-lg shadow-md mb-4">
+            <Activity className="inline-block mr-2 h-6 w-6" />
+            Please log in to view your appointments.
+          </div>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center">
@@ -136,11 +167,6 @@ const MyAppointment = () => {
       </div>
     );
   }
-
-  const filteredAppointments = appointments.filter(appointment => {
-    if (selectedFilter === 'all') return true;
-    return appointment.status === selectedFilter;
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-8">
@@ -179,12 +205,13 @@ const MyAppointment = () => {
           >
             <CalendarIcon className="h-16 w-16 mx-auto mb-4 text-gray-400" />
             <p className="text-xl">No appointments found.</p>
+            <p className="text-gray-500 mt-2">Book your first appointment to get started!</p>
           </motion.div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredAppointments.map((appointment, index) => (
+            {appointments.map((appointment, index) => (
               <motion.div
-                key={appointment.id}
+                key={appointment._id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -250,6 +277,24 @@ const MyAppointment = () => {
                       <Activity className="h-5 w-5 mr-2" />
                       Pre-Appointment Check
                     </motion.button>
+
+                    {/* Status update buttons */}
+                    {appointment.status === 'scheduled' && (
+                      <div className="flex space-x-2 mt-2">
+                        <button
+                          onClick={() => handleStatusUpdate(appointment._id, 'completed')}
+                          className="flex-1 px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
+                        >
+                          Mark Complete
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(appointment._id, 'cancelled')}
+                          className="flex-1 px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </Card>
               </motion.div>

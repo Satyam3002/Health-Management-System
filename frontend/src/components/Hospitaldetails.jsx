@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
+import { useState, useEffect, useContext } from "react";
+import { AppContext } from "../context/AppContext";
+import AppointmentService from "../services/appointmentService";
 
 const HospitalDetails = ({ selectedHospital }) => {
+  const { user, isAuthenticated } = useContext(AppContext);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -9,19 +11,6 @@ const HospitalDetails = ({ selectedHospital }) => {
   const [appointmentType, setAppointmentType] = useState(null);
   const [bookingStatus, setBookingStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const checkSupabaseConnection = async () => {
-      try {
-        const { error } = await supabase.from("appointments").select("id").limit(1);
-        if (error) console.error("Supabase connection error:", error);
-      } catch (err) {
-        console.error("Failed to connect to Supabase:", err);
-      }
-    };
-
-    checkSupabaseConnection();
-  }, []);
 
   const handleDepartmentSelect = (department) => {
     setSelectedDepartment(department);
@@ -59,33 +48,28 @@ const HospitalDetails = ({ selectedHospital }) => {
       return;
     }
 
+    if (!isAuthenticated || !user) {
+      setBookingStatus("Please log in to book an appointment.");
+      return;
+    }
+
     setIsLoading(true);
     setBookingStatus("");
 
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) {
-        setBookingStatus("Please log in to book an appointment.");
-        return;
-      }
-
-      const appointment = {
+      const appointmentData = {
         auth_id: user.id,
         hospital_name: selectedHospital.name,
         hospital_location: selectedHospital.vicinity,
         department: selectedDepartment.name,
         doctor_name: selectedDoctor.name,
         doctor_email: selectedDoctor.gmail,
-        appointment_type: appointmentType,
-        time_slot: selectedTimeSlot,
         appointment_date: selectedDate,
-        created_at: new Date().toISOString(),
-        status: "scheduled",
+        time_slot: selectedTimeSlot,
+        status: "scheduled"
       };
 
-      const { error } = await supabase.from("appointments").insert([appointment]);
-      if (error) throw error;
+      await AppointmentService.createAppointment(appointmentData);
 
       setBookingStatus("Appointment booked successfully!");
       setSelectedTimeSlot(null);
@@ -204,6 +188,7 @@ const HospitalDetails = ({ selectedHospital }) => {
                     ))}
                 </div>
               </div>
+
               <div>
                 <h4 className="font-medium text-gray-800 mb-2">Online Appointments</h4>
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start">
@@ -215,8 +200,8 @@ const HospitalDetails = ({ selectedHospital }) => {
                         onClick={() => handleTimeSlotSelect(slot.time, "online")}
                         className={`px-3 py-2 rounded-lg shadow-sm transition-all ${
                           selectedTimeSlot === slot.time && appointmentType === "online"
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 hover:bg-blue-100"
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-200 hover:bg-green-100"
                         }`}
                       >
                         {slot.time}
@@ -227,34 +212,47 @@ const HospitalDetails = ({ selectedHospital }) => {
             </div>
           )}
 
-          {/* Book Appointment */}
-          {selectedDate && selectedTimeSlot && (
-            <div className="mt-6 md:mt-8 text-center md:text-left">
+          {/* Booking Status */}
+          {bookingStatus && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              bookingStatus.includes("successfully") 
+                ? "bg-green-50 text-green-700 border border-green-200" 
+                : "bg-red-50 text-red-700 border border-red-200"
+            }`}>
+              {bookingStatus}
+            </div>
+          )}
+
+          {/* Book Appointment Button */}
+          {selectedDoctor && selectedDate && selectedTimeSlot && appointmentType && (
+            <div className="flex justify-center">
               <button
                 onClick={handleBookAppointment}
-                disabled={isLoading}
-                className={`w-full md:w-auto px-6 py-3 font-semibold rounded-lg shadow-md transition-all ${
-                  isLoading
+                disabled={isLoading || !isAuthenticated}
+                className={`px-8 py-3 rounded-lg font-semibold text-white transition-all duration-200 ${
+                  isLoading || !isAuthenticated
                     ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-green-500 hover:bg-green-600 text-white"
+                    : "bg-blue-600 hover:bg-blue-700 transform hover:scale-105"
                 }`}
               >
                 {isLoading ? "Booking..." : "Book Appointment"}
               </button>
-              {bookingStatus && (
-                <p
-                  className={`mt-4 font-medium ${
-                    bookingStatus.includes("success") ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {bookingStatus}
-                </p>
-              )}
+            </div>
+          )}
+
+          {/* Authentication Notice */}
+          {!isAuthenticated && (
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700">
+              <p className="text-center">
+                Please <a href="/" className="underline font-medium">log in</a> to book an appointment.
+              </p>
             </div>
           )}
         </div>
       ) : (
-        <p className="text-gray-600 text-center">Select a hospital to view details.</p>
+        <div className="text-center text-gray-500">
+          <p>Select a hospital to view details and book appointments.</p>
+        </div>
       )}
     </div>
   );

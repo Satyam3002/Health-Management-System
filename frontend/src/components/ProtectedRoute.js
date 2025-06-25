@@ -1,15 +1,15 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "../supabaseClient"; 
+import { AppContext } from "../context/AppContext";
 
 const ProtectedRoute = ({ children }) => {
-  const user = supabase.auth.user(); 
+  const { isAuthenticated, user } = useContext(AppContext);
 
-  if (!user) {
-    return <Navigate to="/login" />; 
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/" />;
   }
 
-  return children; 
+  return children;
 };
 
 export default ProtectedRoute;

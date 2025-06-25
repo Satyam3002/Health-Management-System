@@ -11,15 +11,14 @@ function createToken(identity, room) {
     sid,
     key,
     secret,
-    { identity: identity } // Pass identity directly here
+    { identity: identity } 
   );
 
-  // Grant the access token Twilio Video capabilities
+ 
   const grant = new VideoGrant();
-  grant.room = room; // Assign the room to the grant
+  grant.room = room; 
   token.addGrant(grant);
 
-  // Serialize the token to a JWT string
   return token.toJwt();
 }
 
