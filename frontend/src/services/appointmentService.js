@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api/v1/appointments';
+const API_BASE_URL = process.env.REACT_APP_API_URL + '/appointments' || 'http://localhost:5000/api/v1/appointments';
 
 class AppointmentService {
   // Get all appointments for a user
